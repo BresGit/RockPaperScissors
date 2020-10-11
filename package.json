@@ -1,0 +1,24 @@
+{
+  "name": "rockpaperscissors",
+  "version": "1.0.0",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.0.2",
+    "bluebird": "^3.7.2",
+    "bn-chai": "^1.0.1",
+    "chai": "^4.2.0",
+    "openzeppelin-test-helpers": "^0.5.1"
+  },
+  "devDependencies": {
+    "solidity-coverage": "0.6.0"
+  },
+  "description": ""
+}
