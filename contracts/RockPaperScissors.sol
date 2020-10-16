@@ -27,25 +27,31 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract RockPaperScissors is Pausable, Ownable
 {
 
-//Game moves
+// The allowed game moves
+enum GameMoves {
+    NoMove,
+    Rock,
+    Paper,
+    Scissors
+}
 
-uint256 Rock = 1;
-uint256 Paper = 2;
-uint256 Scissors =3;
-uint256 None = 0;
 
 struct GameInfo
 {
 
     address player1;
     address player2;
-    uint256 gameMove2;
+    GameMoves gameMove2;
     uint256 deposit;
     uint256 expiration;
 
 }
 
+
+/* here the commitment is mapped to a game via 'game id'
+which represents a commitment made by player1*/
 mapping(bytes32 => GameInfo) public games;
+
 mapping(address => uint256) public balances;
 
 //Wait for a period of 10 mins
@@ -53,15 +59,23 @@ uint256 public constant WAITPERIOD = 600;
 
 using SafeMath for uint256;
 
+/* Checking for valid game moves */
+
+modifier moveIsValid(GameMoves _move)
+{
+   require(GameMoves.Rock <= _move && _move <= GameMoves.Scissors, "invalid move");
+   _;
+}
+
 
 /* Log that a player won the game */
 event LogWinner(address indexed player, bytes32 indexed gameId, uint256 winnings);
 /* Log game drawn */
 event LogGameDraw(address indexed player0, address indexed player1,  bytes32 indexed gameId, uint256 winnings);
 /* Log that a player revealed the move */
-event LogMoveReveal(address indexed player, bytes32 indexed gameId, uint256 gameMove);
+event LogMoveReveal(address indexed player, bytes32 indexed gameId, GameMoves gameMove);
 /* Log that the second player made the move  */
-event LogMovePlayer2(address indexed player, bytes32 indexed gameId, uint256 gameMove, uint256 bet);
+event LogMovePlayer2(address indexed player, bytes32 indexed gameId, GameMoves gameMove, uint256 bet);
 /* Log that player1 commited to a move  */
 /* The gameId is the hash of the commitment */
 event LogMoveCommitPlayer1(address indexed player1, address indexed player2, bytes32 indexed gameId, uint256 bet);
@@ -78,8 +92,9 @@ constructor () public
 }
 
 /*
-      This function starts the game, the address of the first and second player provided. It then records the
-      commitment of the first player, Player1 also sets the game deposit player2 will have to deposit the same amount).
+      This function starts the game, the address of the first and second player provided.
+      It also records the game move of player1 as a commitment (hash of the game move).
+      Player1 also sets the game deposit player2 will have to deposit the same amount.
 */
 
 function player1MoveCommit(bytes32 _gameId, address _player2) public payable whenNotPaused returns (bool success)
@@ -101,12 +116,12 @@ function player1MoveCommit(bytes32 _gameId, address _player2) public payable whe
 /* This function captures the move of Player2
     This function can be called only after player1MoveCommit executed ???????
  */
-function player2Move(bytes32 _gameId, uint256 _gameMove) public payable whenNotPaused returns (bool success)
+function player2Move(bytes32 _gameId, GameMoves _gameMove) public payable whenNotPaused  moveIsValid(_gameMove) returns (bool success)
    {
 
        require(games[_gameId].player2 == msg.sender, "incorrect player");
        require( msg.value == games[_gameId].deposit, "incorrect deposite to play game");
-       require(games[_gameId].gameMove2 == 0, "player2 has already made a move");
+       require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has already made a move");
 
        games[_gameId].gameMove2 = _gameMove;
        games[_gameId].expiration = now.add(WAITPERIOD);
@@ -119,15 +134,15 @@ function player2Move(bytes32 _gameId, uint256 _gameMove) public payable whenNotP
    /* This function reveals Player1 game move
     */
 
-function player1Reveal(uint256 _gameMove1, bytes32 secret) public whenNotPaused returns (bool success)
+function player1Reveal(GameMoves _gameMove1, bytes32 secret) public whenNotPaused  moveIsValid(_gameMove1) returns (bool success)
   {
 
       bytes32 _gameId = generateCommitment(msg.sender, _gameMove1, secret);
 
       require(games[_gameId].player1 == msg.sender, "incorrect player1");
 
-      uint256 gameMove2 = games[_gameId].gameMove2;
-      require(gameMove2 != 0, "player2 has not made a move");
+      GameMoves gameMove2 = games[_gameId].gameMove2;
+      require(gameMove2 != GameMoves.NoMove, "player2 has not made a move");
 
       emit LogMoveReveal(msg.sender, _gameId, _gameMove1);
 
@@ -139,7 +154,8 @@ function player1Reveal(uint256 _gameMove1, bytes32 secret) public whenNotPaused 
 
   /* This function shows the results of the game, accordingly it distributes the funds */
 
-function determineGameResult(bytes32 _gameId, uint  _gameMove1, uint _gameMove2) internal
+function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _gameMove2) internal
+        moveIsValid(_gameMove1)	moveIsValid(_gameMove2)
     {
 
         uint256 result = (uint256(_gameMove1).add(2)).sub(uint256(_gameMove2)) % 3;
@@ -166,7 +182,7 @@ function determineGameResult(bytes32 _gameId, uint  _gameMove1, uint _gameMove2)
 
         // reset game
   	        games[_gameId].player2 = address(0);
-  	        games[_gameId].gameMove2 = 0;
+  	        games[_gameId].gameMove2 = GameMoves(0);
   	        games[_gameId].deposit = 0;
   	        games[_gameId].expiration = 0;
 
@@ -176,14 +192,15 @@ function determineGameResult(bytes32 _gameId, uint  _gameMove1, uint _gameMove2)
 function player1ReclaimFunds(bytes32 _gameId) public whenNotPaused returns (bool success)
     {
 
-        require(games[_gameId].gameMove2 == 0, "player2 has made a move");
+        require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has made a move");
+        require(games[_gameId].player1 == msg.sender);
 
-        uint256 deposit = games[_gameId].deposit;
-        address player1 = games[_gameId].player1;
-
-        require(deposit != 0, "no funds");
         require(now > games[_gameId].expiration, "game move not expired yet");
 
+        uint256 deposit = games[_gameId].deposit;
+        require(deposit != 0, "no funds");
+
+        address player1 = games[_gameId].player1;
         balances[player1] = balances[player1].add(deposit);
 
         //reset game
@@ -200,7 +217,9 @@ function player1ReclaimFunds(bytes32 _gameId) public whenNotPaused returns (bool
 function player2ClaimFunds(bytes32 _gameId) public whenNotPaused returns (bool success)
     {
 
-        require(games[_gameId].gameMove2 != 0, "player2 has not made a move");
+        require(games[_gameId].gameMove2 != GameMoves.NoMove, "player2 has not made a move");
+        require(games[_gameId].player2 == msg.sender,"only player2 can claim funds");
+
         require(now > games[_gameId].expiration,"game reveal not yet expired");
 
         uint256 deposit = games[_gameId].deposit;
@@ -209,7 +228,7 @@ function player2ClaimFunds(bytes32 _gameId) public whenNotPaused returns (bool s
 
         //reset game
         games[_gameId].player2 = address(0);
-        games[_gameId].gameMove2 = 0;
+        games[_gameId].gameMove2 = GameMoves(0);
         games[_gameId].deposit = 0;
         games[_gameId].expiration = 0;
 
@@ -222,9 +241,9 @@ function player2ClaimFunds(bytes32 _gameId) public whenNotPaused returns (bool s
 function withdraw() public returns (bool success)
     {
 
-        require(balances[msg.sender] > 0, "no funds");
-
         uint256 amount = balances[msg.sender];
+        require(amount > 0, "no funds");
+
         balances[msg.sender] = 0;
 
         emit LogWithdraw(msg.sender, amount);
@@ -237,7 +256,7 @@ function withdraw() public returns (bool success)
 
 /* Generating a commitment. address of the player requesting to generate the commitment, game move, secret text that is unique to each player and only known to that player
  */
-function generateCommitment(address player, uint256 _gameMove, bytes32 secret) public view returns (bytes32 result)
+function generateCommitment(address player, GameMoves _gameMove, bytes32 secret) public view  moveIsValid(_gameMove) returns (bytes32 result)
 {
 
         result = keccak256(abi.encode(address(this), player, _gameMove, secret));
