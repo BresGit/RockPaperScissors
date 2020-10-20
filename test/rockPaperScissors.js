@@ -137,7 +137,7 @@ chai.use(bnChai(BN));
 
         it('should not allow alice to reclaim the funds before expiration period', async() => {
            await expectRevert(
-               rockPaperScissors.player1ReclaimFunds(gameId, {from: alice}),
+               rockPaperScissors.player1ReclaimFunds(ROCK, secretAlice, {from: alice}),
                "game move not expired yet"
            );
        });
@@ -189,7 +189,7 @@ chai.use(bnChai(BN));
 
             await time.increase(time.duration.minutes(11));
 
-            const txObj = await rockPaperScissors.player1ReclaimFunds(gameId, {from: alice});
+            const txObj = await rockPaperScissors.player1ReclaimFunds(ROCK, secretAlice, {from: alice});
             const LogPlayer1ReclaimFunds = txObj.logs[0];
 
             assert.strictEqual(txObj.logs.length, 1, "Should have emitted an event");
@@ -266,7 +266,7 @@ chai.use(bnChai(BN));
         it('should not allow alice to reclaim funds', async() =>
         {
             await expectRevert(
-                rockPaperScissors.player1ReclaimFunds(gameId, {from: alice}),
+                rockPaperScissors.player1ReclaimFunds(ROCK, secretAlice, {from: alice}),
                 "player2 has made a move"
             );
         });
@@ -383,7 +383,7 @@ chai.use(bnChai(BN));
             const LogWinner = txObj.logs[1];
 
             assert.strictEqual("LogWinner", LogWinner.event);
-            assert.strictEqual(bob, LogWinner.args.player);
+            assert.strictEqual(bob, LogWinner.args.winner);
             assert.strictEqual(gameId, LogWinner.args.gameId);
 
         });
@@ -452,7 +452,7 @@ chai.use(bnChai(BN));
             const LogGameDraw = txObj.logs[1];
 
             assert.strictEqual("LogGameDraw", LogGameDraw.event);
-            assert.strictEqual(bob, LogGameDraw.args.player1);
+            assert.strictEqual(bob, LogGameDraw.args.player2);
             assert.strictEqual(gameId, LogGameDraw.args.gameId);
             assert.strictEqual(gameDeposit.toString(10),LogGameDraw.args.winnings.toString(10));
 
@@ -463,7 +463,7 @@ chai.use(bnChai(BN));
         {
 
             await expectRevert(
-	            rockPaperScissors.player1ReclaimFunds(gameId, {from: alice}),
+	            rockPaperScissors.player1ReclaimFunds(ROCK, secretAlice, {from: alice}),
 	            "player2 has made a move"
 	        );
 
@@ -501,7 +501,7 @@ chai.use(bnChai(BN));
 
 	        // alice should not be allowed to reclaim funds
 	        await expectRevert(
-	            rockPaperScissors.player1ReclaimFunds(gameId, {from: alice}),
+	            rockPaperScissors.player1ReclaimFunds(ROCK, secretAlice, {from: alice}),
 	            "no funds"
 	        );
 
@@ -557,7 +557,7 @@ chai.use(bnChai(BN));
             const LogWinner = txObj.logs[1];
 
             assert.strictEqual("LogWinner", LogWinner.event);
-            assert.strictEqual(alice, LogWinner.args.player);
+            assert.strictEqual(alice, LogWinner.args.winner);
             assert.strictEqual(gameId1, LogWinner.args.gameId);
             assert.strictEqual((gameDeposit*2).toString(10),LogWinner.args.winnings.toString(10));
 
@@ -584,7 +584,7 @@ chai.use(bnChai(BN));
             const LogWinner = txObj.logs[1];
 
             assert.strictEqual("LogWinner", LogWinner.event);
-            assert.strictEqual(alice, LogWinner.args.player);
+            assert.strictEqual(alice, LogWinner.args.winner);
             assert.strictEqual(gameId2, LogWinner.args.gameId);
             assert.strictEqual((gameDeposit*2).toString(10),LogWinner.args.winnings.toString(10));
 
