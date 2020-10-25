@@ -105,7 +105,6 @@ function player1MoveCommit(bytes32 _gameId, address _player2) public payable whe
     require(msg.value !=0, "game deposit required");
     require(_player2 != msg.sender, "player can't play itself");
 
-    //games[_gameId].player1 = msg.sender;
     games[_gameId].player2 = _player2;
     games[_gameId].deposit = msg.value;
     games[_gameId].expiration = now.add(WAITPERIOD);
@@ -121,7 +120,8 @@ function player2Move(bytes32 _gameId, GameMoves _gameMove) public payable whenNo
    {
 
        require(games[_gameId].player2 == msg.sender, "incorrect player");
-       require( msg.value == games[_gameId].deposit, "incorrect deposite to play game");
+       require(games[_gameId].expiration != 0,"Not a valid Game");
+       require(msg.value == games[_gameId].deposit, "incorrect deposite to play game");
        require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has already made a move");
 
        games[_gameId].gameMove2 = _gameMove;
@@ -139,8 +139,6 @@ function player1Reveal(GameMoves _gameMove1, bytes32 secret) public whenNotPause
   {
 
       bytes32 _gameId = generateCommitment(msg.sender, _gameMove1, secret);
-
-      //require(games[_gameId].player1 == msg.sender, "incorrect player1");
 
       GameMoves gameMove2 = games[_gameId].gameMove2;
       require(gameMove2 != GameMoves.NoMove, "player2 has not made a move");
@@ -182,7 +180,7 @@ function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _
         }
 
         // reset game
-  	        games[_gameId].player2 = address(0);
+  	        //games[_gameId].player2 = address(0);
   	        games[_gameId].gameMove2 = GameMoves(0);
   	        games[_gameId].deposit = 0;
   	        games[_gameId].expiration = 0;
@@ -193,8 +191,6 @@ function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _
 function player1ReclaimFunds(GameMoves _gameMove1, bytes32 _secret) public whenNotPaused returns (bool success)
     {
 
-        //address player1 = games[_gameId].player1;
-        //require(player1 == msg.sender);
         bytes32 _gameId = generateCommitment(msg.sender, _gameMove1, _secret);
 
         require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has made a move");
@@ -206,8 +202,6 @@ function player1ReclaimFunds(GameMoves _gameMove1, bytes32 _secret) public whenN
 
         balances[msg.sender] = balances[msg.sender].add(deposit);
 
-        //reset game
-        games[_gameId].player2 = address(0);
         games[_gameId].deposit = 0;
         games[_gameId].expiration = 0;
 
@@ -224,15 +218,15 @@ function player2ClaimFunds(bytes32 _gameId) public whenNotPaused returns (bool s
 
         require(games[_gameId].gameMove2 != GameMoves.NoMove, "player2 has not made a move");
         require(player2 == msg.sender,"only player2 can claim funds");
+        require(games[_gameId].player2 != address(0),"Game Id used already");
 
         require(now > games[_gameId].expiration,"game reveal not yet expired");
+
 
         uint256 deposit = games[_gameId].deposit;
 
         balances[player2] = balances[player2].add(deposit.mul(2));
 
-        //reset game
-        games[_gameId].player2 = address(0);
         games[_gameId].gameMove2 = GameMoves(0);
         games[_gameId].deposit = 0;
         games[_gameId].expiration = 0;

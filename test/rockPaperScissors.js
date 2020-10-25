@@ -12,7 +12,6 @@ const bnChai = require('bn-chai');
 chai.use(bnChai(BN));
 
 
-
 	const ROCK = 1;
 	const PAPER = 2;
 	const SCISSORS = 3;
@@ -203,7 +202,7 @@ chai.use(bnChai(BN));
         it('should not allow bob to make a move', async() => {
             await expectRevert(
                 rockPaperScissors.player2Move(gameId, PAPER, {from: bob, value: gameDeposit}),
-                "incorrect player"
+                "Not a valid Game"
 
             );
         });
@@ -325,7 +324,6 @@ chai.use(bnChai(BN));
 
             //Confirm that game has been reset
             const game = await rockPaperScissors.games(gameId);
-            assert.equal(game.player2, 0);
             assert.equal(game.gameMove2.toString(10), '0');
             assert.equal(game.deposit, 0);
             assert.equal(game.expiration, 0);
@@ -407,7 +405,6 @@ chai.use(bnChai(BN));
 
             // Confirm that game has been reset
 	        const game = await rockPaperScissors.games(gameId);
-	        assert.equal(game.player2, 0);
 	        assert.equal(game.gameMove2.toString(10), '0');
 	        assert.equal(game.deposit, 0);
 	        assert.equal(game.expiration, 0);
@@ -494,7 +491,7 @@ chai.use(bnChai(BN));
 
 	        // Confirm that game has been reset
 	        const game = await rockPaperScissors.games(gameId);
-	        assert.equal(game.player2, 0);
+	        //assert.equal(game.player2, 0);
 	        assert.equal(game.gameMove2.toString(10), '0');
 	        assert.equal(game.deposit, 0);
 	        assert.equal(game.expiration, 0);
@@ -563,7 +560,6 @@ chai.use(bnChai(BN));
 
 	        // Assert that game1 has been reset
 	        const game = await rockPaperScissors.games(gameId1);
-	        assert.equal(game.player2, 0);
 	        assert.equal(game.gameMove2.toString(10), '0');
 	        assert.equal(game.deposit, 0);
 	        assert.equal(game.expiration, 0);
@@ -591,12 +587,10 @@ chai.use(bnChai(BN));
 
 	        // Confirm that game2 has been reset
 	        const game = await rockPaperScissors.games(gameId2);
-	        assert.equal(game.player2, 0);
 	        assert.equal(game.gameMove2.toString(10), '0');
 	        assert.equal(game.deposit, 0);
 	        assert.equal(game.expiration, 0);
 	    });
-
 
 	    it('should then allow alice to withdraw winnings', async() =>
         {
