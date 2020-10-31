@@ -100,14 +100,17 @@ constructor () public
 
 function player1MoveCommit(bytes32 _gameId, address _player2) public payable whenNotPaused returns (bool success)
 {
-
-    require(games[_gameId].player2 == address(0), "game id already used");
+    // this is a pointer to a structure
+    // helpfull information on storage pointers - https://blog.b9lab.com/storage-pointers-in-solidity-7dcfaa536089
+    GameInfo storage g = games[_gameId];
+    require(g.player2 == address(0), "game id already used");
     require(msg.value !=0, "game deposit required");
     require(_player2 != msg.sender, "player can't play itself");
 
-    games[_gameId].player2 = _player2;
-    games[_gameId].deposit = msg.value;
-    games[_gameId].expiration = now.add(WAITPERIOD);
+
+    g.player2 = _player2;
+    g.deposit = msg.value;
+    g.expiration = now.add(WAITPERIOD);
     emit LogMoveCommitPlayer1(msg.sender, _player2, _gameId, msg.value);
     return true;
 
@@ -118,14 +121,16 @@ function player1MoveCommit(bytes32 _gameId, address _player2) public payable whe
  */
 function player2Move(bytes32 _gameId, GameMoves _gameMove) public payable whenNotPaused  moveIsValid(_gameMove) returns (bool success)
    {
+       // this is a pointer to a structure
+       GameInfo storage g = games[_gameId];
 
-       require(games[_gameId].player2 == msg.sender, "incorrect player");
-       require(games[_gameId].expiration != 0,"Not a valid Game");
-       require(msg.value == games[_gameId].deposit, "incorrect deposite to play game");
-       require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has already made a move");
+       require(g.player2 == msg.sender, "incorrect player");
+       require(g.expiration != 0,"Not a valid Game");
+       require(msg.value == g.deposit, "incorrect deposite to play game");
+       require(g.gameMove2 == GameMoves.NoMove, "player2 has already made a move");
 
-       games[_gameId].gameMove2 = _gameMove;
-       games[_gameId].expiration = now.add(WAITPERIOD);
+       g.gameMove2 = _gameMove;
+       g.expiration = now.add(WAITPERIOD);
        emit LogMovePlayer2(msg.sender, _gameId, _gameMove, msg.value);
 
        return true;
@@ -156,9 +161,10 @@ function player1Reveal(GameMoves _gameMove1, bytes32 secret) public whenNotPause
 function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _gameMove2) internal
         moveIsValid(_gameMove1)	moveIsValid(_gameMove2)
     {
-
+        // this is a pointer to a structure
+        GameInfo storage g = games[_gameId];
         uint256 result = (uint256(_gameMove1).add(2)).sub(uint256(_gameMove2)) % 3;
-        uint256 deposit = games[_gameId].deposit;
+        uint256 deposit = g.deposit;
 
         if (result == 0) {
             // player1 game winner
@@ -166,12 +172,12 @@ function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _
             emit LogWinner(msg.sender, _gameId, deposit.mul(2));
         } else if (result == 1) {
             // player2 game winner
-            address player2 = games[_gameId].player2;
+            address player2 = g.player2;
             balances[player2] = balances[player2].add(deposit.mul(2));
             emit LogWinner(player2, _gameId, deposit.mul(2));
         } else if (result == 2) {
             // game is a draw
-            address player2 = games[_gameId].player2;
+            address player2 = g.player2;
             balances[msg.sender] = balances[msg.sender].add(deposit);
             balances[player2] = balances[player2].add(deposit);
             emit LogGameDraw(_gameId, msg.sender, player2, deposit);
@@ -180,10 +186,9 @@ function determineGameResult(bytes32 _gameId, GameMoves  _gameMove1, GameMoves _
         }
 
         // reset game
-  	        //games[_gameId].player2 = address(0);
-  	        games[_gameId].gameMove2 = GameMoves(0);
-  	        games[_gameId].deposit = 0;
-  	        games[_gameId].expiration = 0;
+  	        g.gameMove2 = GameMoves(0);
+  	        g.deposit = 0;
+  	        g.expiration = 0;
 
     }
 
@@ -192,18 +197,20 @@ function player1ReclaimFunds(GameMoves _gameMove1, bytes32 _secret) public whenN
     {
 
         bytes32 _gameId = generateCommitment(msg.sender, _gameMove1, _secret);
+        //htis a pointer to a structure
+        GameInfo storage g = games[_gameId];
 
-        require(games[_gameId].gameMove2 == GameMoves.NoMove, "player2 has made a move");
+        require(g.gameMove2 == GameMoves.NoMove, "player2 has made a move");
 
-        require(now > games[_gameId].expiration, "game move not expired yet");
+        require(now > g.expiration, "game move not expired yet");
 
-        uint256 deposit = games[_gameId].deposit;
+        uint256 deposit = g.deposit;
         require(deposit != 0, "no funds");
 
         balances[msg.sender] = balances[msg.sender].add(deposit);
 
-        games[_gameId].deposit = 0;
-        games[_gameId].expiration = 0;
+        g.deposit = 0;
+        g.expiration = 0;
 
         emit LogPlayer1ReclaimFunds(msg.sender, _gameId, deposit);
         return true;
@@ -213,23 +220,23 @@ function player1ReclaimFunds(GameMoves _gameMove1, bytes32 _secret) public whenN
 /* This function lets Player2 to cancel the game and get funds when Player1 did not reveal their move the required time period */
 function player2ClaimFunds(bytes32 _gameId) public whenNotPaused returns (bool success)
     {
+        // this is a pointer to a structure
+        GameInfo storage g = games[_gameId];
 
-        address player2 = games[_gameId].player2;
+        address player2 = g.player2;
 
-        require(games[_gameId].gameMove2 != GameMoves.NoMove, "player2 has not made a move");
+        require(g.gameMove2 != GameMoves.NoMove, "player2 has not made a move");
         require(player2 == msg.sender,"only player2 can claim funds");
-        require(games[_gameId].player2 != address(0),"Game Id used already");
 
-        require(now > games[_gameId].expiration,"game reveal not yet expired");
+        require(now > g.expiration,"game reveal not yet expired");
 
-
-        uint256 deposit = games[_gameId].deposit;
+        uint256 deposit = g.deposit;
 
         balances[player2] = balances[player2].add(deposit.mul(2));
 
-        games[_gameId].gameMove2 = GameMoves(0);
-        games[_gameId].deposit = 0;
-        games[_gameId].expiration = 0;
+        g.gameMove2 = GameMoves(0);
+        g.deposit = 0;
+        g.expiration = 0;
 
         emit LogPlayer2ClaimFunds(player2, _gameId, deposit.mul(2));
         return true;
